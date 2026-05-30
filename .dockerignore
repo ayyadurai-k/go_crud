@@ -1,0 +1,21 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Compiled binaries / build artifacts
+crud
+*.exe
+*.test
+*.out
+
+# VCS & local tooling
+.git
+.gitignore
+.remember
+docs
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose.yml
