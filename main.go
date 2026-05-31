@@ -29,6 +29,25 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 
+	// Temporary diagnostic: reports the real database connection status/error in
+	// the HTTP body so we can see WHY the container can't reach the DB.
+	router.GET("/dbcheck", func(c *gin.Context) {
+		if initializers.DB == nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"db": "nil (ConnectDB failed at startup)"})
+			return
+		}
+		sqlDB, err := initializers.DB.DB()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"stage": "DB()", "error": err.Error()})
+			return
+		}
+		if err := sqlDB.Ping(); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"stage": "ping", "error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"db": "connected"})
+	})
+
 	router.POST("/posts", controllers.PostCreate)
 	router.GET("/posts", controllers.PostList)
 	router.GET("/posts/:id", controllers.PostDetail)
