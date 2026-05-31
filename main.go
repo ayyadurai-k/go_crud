@@ -12,6 +12,7 @@ import (
 
 	"crud/controllers"
 	"crud/initializers"
+	"crud/models"
 
 	"github.com/gin-gonic/gin"
 )
@@ -19,6 +20,14 @@ import (
 func init() {
 	initializers.LoadEnvVariables()
 	initializers.ConnectDB()
+
+	// Create the posts table on startup. Required because the embedded SQLite
+	// file is fresh on each deploy. Idempotent and instant for a local DB.
+	if initializers.DB != nil {
+		if err := initializers.DB.AutoMigrate(&models.Post{}); err != nil {
+			log.Println("AutoMigrate failed:", err)
+		}
+	}
 }
 
 func main() {
@@ -27,25 +36,6 @@ func main() {
 	// Liveness/readiness probe for the reverse proxy and container healthcheck.
 	router.GET("/healthz", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
-	})
-
-	// Temporary diagnostic: reports the real database connection status/error in
-	// the HTTP body so we can see WHY the container can't reach the DB.
-	router.GET("/dbcheck", func(c *gin.Context) {
-		if initializers.DB == nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"db": "nil (ConnectDB failed at startup)"})
-			return
-		}
-		sqlDB, err := initializers.DB.DB()
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"stage": "DB()", "error": err.Error()})
-			return
-		}
-		if err := sqlDB.Ping(); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"stage": "ping", "error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{"db": "connected"})
 	})
 
 	router.POST("/posts", controllers.PostCreate)

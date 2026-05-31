@@ -11,3 +11,6 @@ crud
 # Go build/test artifacts
 *.test
 *.out
+
+# SQLite database files (created at runtime)
+*.db

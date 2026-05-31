@@ -1,36 +1,24 @@
 package initializers
 
 import (
-	"fmt"
-	"os"
 	"log"
-  	"gorm.io/driver/postgres"
-  	"gorm.io/gorm"
+
+	"github.com/glebarez/sqlite" // pure-Go SQLite driver (works with CGO_ENABLED=0)
+	"gorm.io/gorm"
 )
 
 var DB *gorm.DB
 
-func ConnectDB(){
-	var err error
-
-	DB_HOST := os.Getenv("DB_HOST")
-	DB_PORT := os.Getenv("DB_PORT")
-	DB_USER := os.Getenv("DB_USER")
-	DB_PASSWORD := os.Getenv("DB_PASSWORD")
-	DB_NAME := os.Getenv("DB_NAME")
-	DB_SSL_MODE := os.Getenv("DB_SSL_MODE")
-	DB_TIMEZONE := os.Getenv("DB_TIMEZONE")
-
-	// connect_timeout=5 makes a bad/unreachable host fail after 5s instead of
-	// hanging forever and blocking the HTTP server from starting.
-	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s TimeZone=%s connect_timeout=5",
-		DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME, DB_SSL_MODE, DB_TIMEZONE)
-
-	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
-
+// ConnectDB opens an embedded SQLite database stored as a file inside the
+// container. No network connection is used, so it works even when the platform
+// blocks outbound database traffic. The file is ephemeral (reset on redeploy),
+// which is fine for a demo — the schema is recreated on startup via AutoMigrate.
+func ConnectDB() {
+	db, err := gorm.Open(sqlite.Open("crud.db"), &gorm.Config{})
 	if err != nil {
-		// Log instead of log.Fatal so a DB hiccup can't crash the app on boot.
-		// The server still starts, /healthz stays up, and the deploy goes Live.
+		// Don't crash the app on a DB error; the server still starts and /healthz works.
 		log.Println("Failed to connect database:", err)
+		return
 	}
+	DB = db
 }
